@@ -654,3 +654,6 @@ if not REGISTRATION:
 REDIRECT_LOGIN_TO_SSO = config("REDIRECT_LOGIN_TO_SSO", default=False, cast=bool)
 
 SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", default=60 * 60 * 24 * 14, cast=int)
+
+# Optional personal workbench controls. No credentials are exposed to templates.
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("config.local_sync.workbench_context")

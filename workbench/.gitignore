@@ -1,0 +1,6 @@
+/backups/
+/yamtrack/.env
+/yamtrack/db/
+/silverbullet/data/
+/silverbullet/library/
+*.log

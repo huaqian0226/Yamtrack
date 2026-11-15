@@ -111,6 +111,13 @@
             {% block sidebar_external_media_view %}
             {% endblock sidebar_external_media_view %}
 
+            <div class="border-t border-[#2c3136] pt-4 mb-4">
+              <div class="mt-4 mb-2 px-4 text-xs text-gray-500">生活娱乐工作台</div>
+              <a href="{{ workbench_knowledge_url }}" target="life-silverbullet" class="flex items-center space-x-3 px-4 py-2 rounded-md text-sm text-gray-400 hover:text-white hover:bg-[#23272b]" aria-label="游戏知识库" data-workbench-target="life-silverbullet">📚 <span>游戏知识库</span><span aria-hidden="true">↗</span></a>
+              {% if workbench_tv_url %}<a href="{{ workbench_tv_url }}" target="life-decotv" class="flex items-center space-x-3 px-4 py-2 rounded-md text-sm text-gray-400 hover:text-white hover:bg-[#23272b]" aria-label="DecoTV · 剧综" data-workbench-target="life-decotv">📺 <span>DecoTV · 剧综</span><span aria-hidden="true">↗</span></a>{% endif %}
+              <a href="{{ workbench_files_url }}" target="life-openlist" class="flex items-center space-x-3 px-4 py-2 rounded-md text-sm text-gray-400 hover:text-white hover:bg-[#23272b]" aria-label="OpenList · 网盘文件" data-workbench-target="life-openlist">📁 <span>OpenList · 网盘文件</span><span aria-hidden="true">↗</span></a>
+              <div class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-500" aria-disabled="true" title="建立私人影库后再配置入口">🎞️ <span>Jellyfin · 待部署</span></div>
+            </div>
             {% block sidebar_utilities %}
               <div class="border-t border-[#2c3136] pt-4">
                 <ul class="space-y-1">
@@ -346,5 +353,16 @@
 
     <script src="{% static 'js/mediaStatusDateHandler.js' %}{% get_static_file_mtime 'js/mediaStatusDateHandler.js' %}"></script>
     <script src="{% static 'js/searchShortcut.js' %}{% get_static_file_mtime 'js/searchShortcut.js' %}"></script>
+
+    <script>
+      // Reuse this trusted local workbench tab without inspecting arbitrary tabs.
+      window.name = "life-yamtrack";
+      document.addEventListener("click", function (event) {
+        const link = event.target.closest("a[data-workbench-target]");
+        if (!link || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        const tab = window.open(link.href, link.dataset.workbenchTarget);
+        if (tab) { event.preventDefault(); tab.focus(); }
+      });
+    </script>
   </body>
 </html>

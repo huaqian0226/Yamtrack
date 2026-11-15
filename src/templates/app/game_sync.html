@@ -1,0 +1,27 @@
+                {% if request.user == target_user and media_type == 'game' and workbench_sync_enabled %}
+                <div id="game-library-sync-panel" style="position:relative;display:flex;align-items:center;gap:12px">
+                  <form id="game-library-sync-form">{% csrf_token %}
+                    <button type="submit" id="game-library-sync-button" class="flex items-center space-x-3 px-4 py-2 rounded-md text-sm text-gray-100 bg-[#39404b] hover:bg-[#454d5a]" title="同时同步 Steam 与 Nintendo；每日自动同步仍为伦敦时间08:00">
+                      <span aria-hidden="true">↻</span><span>同步游戏库</span>
+                    </button>
+                  </form>
+                  <details id="game-library-sync-details" class="text-sm text-gray-400">
+                    <summary class="cursor-pointer">结果</summary><div style="position:absolute;right:0;top:calc(100% + 8px);z-index:25;width:340px;max-width:75vw;padding:14px 18px;background:#2a2f35;border:1px solid #454d5a;border-radius:8px;box-shadow:0 6px 20px #0005">
+                    <p id="steam-sync-result" class="mt-2" aria-live="polite"></p>
+                    <p id="nintendo-sync-result" class="mt-1" aria-live="polite"></p>
+                  </div></details>
+                </div>
+                <script>
+                (()=>{
+                  const form=document.getElementById('game-library-sync-form'),button=document.getElementById('game-library-sync-button'),details=document.getElementById('game-library-sync-details');let timer;
+                  function describe(s){
+                    if(s.state==='queued')return '已排队';if(s.state==='running')return '正在同步…';if(s.state==='error')return s.message||'失败，请重试';
+                    if(s.state==='success')return s.message||`完成：新增 ${s.created}，更新 ${s.updated}，无变化 ${s.unchanged}`+(s.unknown_count?`；${s.unknown_count} 款待确认`:'');return '尚未手动同步';
+                  }
+                  function show(s){button.disabled=s.state==='running';document.getElementById('steam-sync-result').textContent='Steam：'+describe(s.steam);document.getElementById('nintendo-sync-result').textContent='Nintendo：'+describe(s.nintendo);if(button.disabled){clearTimeout(timer);timer=setTimeout(poll,3000);}}
+                  function failed(){button.disabled=false;details.open=true;document.getElementById('steam-sync-result').textContent='无法读取状态，请刷新后检查，避免重复提交。';}
+                  async function poll(){try{const r=await fetch('/local/game-library-sync');if(!r.ok)throw Error();show(await r.json());}catch{failed();}}
+                  form.addEventListener('submit',async e=>{e.preventDefault();button.disabled=true;details.open=true;try{const r=await fetch('/local/game-library-sync',{method:'POST',headers:{'X-CSRFToken':form.querySelector('[name=csrfmiddlewaretoken]').value}});if(!r.ok)throw Error();show(await r.json());}catch{failed();}});poll();
+                })();
+                </script>
+                {% endif %}

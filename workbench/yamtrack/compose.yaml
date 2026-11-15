@@ -1,0 +1,19 @@
+services:
+  yamtrack:
+    container_name: yamtrack
+    build:
+      context: ../..
+    restart: unless-stopped
+    env_file: .env
+    ports: ["127.0.0.1:8000:8000"]
+    volumes:
+      - ./db:/yamtrack/db
+      - ../nintendo-export/private/bridge:/yamtrack/local-sync
+    depends_on: [redis]
+  redis:
+    container_name: yamtrack-redis
+    image: redis:8-alpine
+    restart: unless-stopped
+    volumes: ["redis_data:/data"]
+volumes:
+  redis_data:
