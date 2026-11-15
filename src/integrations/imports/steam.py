@@ -11,6 +11,7 @@ from app.providers import services
 from app.providers.igdb import ExternalGameSource, external_game
 from integrations.imports import helpers
 from integrations.imports.helpers import MediaImportError, MediaImportUnexpectedError
+from lists.models import CustomList, CustomListItem
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class SteamImporter:
         self.user = user
         self.mode = mode
         self.warnings = []
+        self.owned_media_ids = set()
         self.api_key = settings.STEAM_API_KEY
 
         if not self.api_key:
@@ -76,6 +78,8 @@ class SteamImporter:
             self.user,
         )
 
+        self._ensure_owned_list_membership()
+
         created_games = len(self.bulk_media[MediaTypes.GAME.value])
         updated_games = len(self.bulk_media_updates[MediaTypes.GAME.value])
         imported_counts = {}
@@ -89,6 +93,30 @@ class SteamImporter:
         )
 
         return imported_counts, "\n".join(self.warnings) if self.warnings else ""
+
+    def _ensure_owned_list_membership(self):
+        """Add matched, tracked Steam games without changing other memberships.
+
+        Include unchanged games so reruns repair missing membership. Never add
+        catalog-only candidates, unmatched games, or another user's records.
+        """
+        item_ids = list(
+            app.models.Game.objects.filter(
+                user=self.user,
+                item__source=Sources.IGDB.value,
+                item__media_type=MediaTypes.GAME.value,
+                item__media_id__in=self.owned_media_ids,
+            ).values_list("item_id", flat=True).distinct()
+        )
+        if not item_ids:
+            return
+        owned, _ = CustomList.objects.get_or_create(
+            owner=self.user, name="已有游戏",
+        )
+        CustomListItem.objects.bulk_create(
+            [CustomListItem(custom_list=owned, item_id=pk) for pk in item_ids],
+            ignore_conflicts=True,
+        )
 
     def _get_owned_games(self):
         """Fetch owned games from Steam API with retry logic for rate limiting."""
@@ -182,6 +210,7 @@ class SteamImporter:
                 return
 
             media_id = str(igdb_game["media_id"])
+            self.owned_media_ids.add(media_id)
             existing_game = self.existing_media[MediaTypes.GAME.value][
                 Sources.IGDB.value
             ].get(media_id)

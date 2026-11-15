@@ -9,6 +9,7 @@
 - Workbench navigation and named external tabs; local COOP adjustment.
 - Games title-row combined Steam/Nintendo sync button and separate result panel.
 - Authenticated, CSRF-protected queue endpoints; Steam uses the native import task.
+- Steam imports add successfully matched, tracked games to the owner’s `已有游戏` list, including unchanged games on retries. Other lists, notes and scores are preserved; no membership is removed. This applies to scheduled and manual imports.
 - Nintendo Go v0.1.1 export/auth helper; transactional minute-only import with stable platform/title mapping; daily London 08:00 catch-up runner and tests.
 - Private online backups and a Steam-key input helper.
 
