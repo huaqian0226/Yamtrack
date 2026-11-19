@@ -8,6 +8,8 @@ hq 于 2026-11-19 确定，简单功能直接在 `my-feature` 开发。只有多
 
 游戏详情页将商店按钮放在页面顶部的游戏标题正下方、海报上方。Steam、Nintendo eShop、Epic Games Store 和 GOG 按钮按已有链接显示，在新标签页打开。仅有 `Item` 的条目也适用，原有 `Details → Links` 保留。
 
+**部署状态：** 2026-11-19 已上线。生产新增只读覆盖 `overrides/media_details.html`（sha256 `d1d6d002…`），重建应用容器后验证：Loftia 显示 Steam、Epic Games Store，马力欧惊奇显示 Nintendo eShop，电影和剧集页无按钮。起因：hq.1 的链接只出现在左栏 Details 卡片底部的 Links 小字行，hq 在浏览器里没注意到。
+
 | 变更文件 | 用途 |
 |---|---|
 | `src/templates/app/media_details.html` | 游戏标题下方新增可换行的商店按钮，沿用已编译的样式。 |
