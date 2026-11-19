@@ -1,0 +1,34 @@
+[
+  {
+    "name": "GameData",
+    "result": [
+      {
+        "id": 1942,
+        "name": "The Witcher 3: Wild Hunt",
+        "game_type": 0,
+        "url": "https://www.igdb.com/games/the-witcher-3-wild-hunt",
+        "first_release_date": 1431993600,
+        "themes": [{"name": "Action"}, {"name": "Fantasy"}, {"name": "Open world"}],
+        "websites": [
+          {"url": "https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/"},
+          {"url": "https://store.steampowered.com/app/292030/"},
+          {"url": "https://www.nintendo.com/us/store/products/the-witcher-3-wild-hunt-complete-edition-switch/"},
+          {"url": "https://store.epicgames.com/en-US/p/the-witcher-3-wild-hunt"},
+          {"url": "https://www.gog.com/en/game/the_witcher_3_wild_hunt"},
+          {"url": "https://www.nintendo.com/us/gaming-systems/switch/"},
+          {"url": "https://en.wikipedia.org/wiki/The_Witcher_3:_Wild_Hunt"},
+          {"url": "ftp://ec.nintendo.com/US/en/titles/70010000000001"},
+          {"url": "https://[invalid"},
+          {}
+        ],
+        "external_games": [{"external_game_source": 1, "uid": "292030"}]
+      }
+    ]
+  },
+  {
+    "name": "TTBData",
+    "result": [
+      {"id": 42, "hastily": 180000, "normally": 360000, "completely": 540000}
+    ]
+  }
+]

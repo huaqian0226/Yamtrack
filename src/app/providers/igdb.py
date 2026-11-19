@@ -1,5 +1,6 @@
 import logging
 from enum import IntEnum
+from urllib.parse import urlsplit
 
 import requests
 from django.conf import settings
@@ -12,6 +13,16 @@ from app.providers import services
 
 logger = logging.getLogger(__name__)
 base_url = "https://api.igdb.com/v4"
+
+STORE_WEBSITE_HOSTS = {
+    "store.steampowered.com": "Steam",
+    "ec.nintendo.com": "Nintendo eShop",
+    "store.nintendo.com": "Nintendo eShop",
+    "store-jp.nintendo.com": "Nintendo eShop",
+    "store.epicgames.com": "Epic Games Store",
+    "www.gog.com": "GOG",
+    "gog.com": "GOG",
+}
 
 
 class ExternalGameSource(IntEnum):
@@ -277,6 +288,7 @@ def game(media_id):
             "fields name,cover.image_id,artworks.image_id,"
             "url,summary,game_type,first_release_date,total_rating,total_rating_count,"
             "genres.name,themes.name,platforms.name,involved_companies.company.name,"
+            "websites.url,external_games.external_game_source,external_games.uid,"
             "parent_game.name,parent_game.cover.image_id,"
             "remasters.name,remasters.cover.image_id,"
             "remakes.name,remakes.cover.image_id,"
@@ -349,6 +361,7 @@ def game(media_id):
             "genres": get_list(game_response, "genres"),
             "score": get_score(game_response),
             "score_count": game_response.get("total_rating_count"),
+            "external_links": get_external_links(game_response),
             "details": {
                 "format": get_game_type(game_response["game_type"]),
                 "release_date": get_start_date(game_response),
@@ -372,6 +385,52 @@ def game(media_id):
         }
         cache.set(cache_key, data)
     return data
+
+
+def _store_website_label(url):
+    """Identify storefront URLs by their host and, for shared domains, path."""
+    if not isinstance(url, str):
+        return None
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return None
+    if parsed.scheme not in ("http", "https") or not parsed.path.strip("/"):
+        return None
+
+    host = parsed.netloc.lower()
+    path = parsed.path.lower()
+    if host in ("nintendo.com", "www.nintendo.com") and (
+        "/store/products/" in path
+        or path.startswith("/games/detail/")
+        or "/games/nintendo-switch" in path
+    ):
+        return "Nintendo eShop"
+    if host in ("epicgames.com", "www.epicgames.com") and path.startswith("/store/"):
+        return "Epic Games Store"
+    return STORE_WEBSITE_HOSTS.get(host)
+
+
+def get_external_links(response):
+    """Return known storefront URLs, falling back to a Steam app ID if needed."""
+    links = {}
+    for website in response.get("websites") or []:
+        url = website.get("url")
+        if label := _store_website_label(url):
+            links.setdefault(label, url)
+
+    if "Steam" not in links:
+        for entry in response.get("external_games") or []:
+            uid = str(entry.get("uid", ""))
+            if (
+                entry.get("external_game_source") == ExternalGameSource.STEAM
+                and uid.isascii()
+                and uid.isdecimal()
+            ):
+                links["Steam"] = f"https://store.steampowered.com/app/{uid}/"
+                break
+
+    return links
 
 
 def get_image_url(response):

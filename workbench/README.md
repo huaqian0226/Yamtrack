@@ -2,10 +2,11 @@
 
 ## Branch ownership
 
-`main` is an unmodified mirror of upstream **release**, initially v0.26.3 / 76856f9e053e7f59469d1eac0238727263e2adfd. Upstream's default branch is **dev**, not main. Keep local changes only on **my-feature**. This branch contains the deployed UI and sync implementation, with personal configuration removed. The running installation still uses the pinned official image plus local mounts; publishing this branch does not deploy a newer image.
+`main` 对应上游稳定分支 **release**，初始版本为 `v0.26.3`（`76856f9e053e7f59469d1eac0238727263e2adfd`）。上游默认分支为 **dev**。**my-feature** 保存去除个人配置后的界面和同步定制，**hq/feature-store-links** 以它为基线。生产仍使用锁定的官方镜像及本地覆盖文件，源码发布与生产部署分别执行。
 
 ## What is included
 
+- `hq/feature-store-links` 增加游戏详情页商店链接。版本、文件清单和部署步骤见 [hq 定制变更](../HQ-CHANGES.md)。
 - Workbench navigation and named external tabs; local COOP adjustment.
 - Games title-row combined Steam/Nintendo sync button and separate result panel.
 - Authenticated, CSRF-protected queue endpoints; Steam uses the native import task.

@@ -66,14 +66,22 @@ class Search(TestCase):
         for tv in response["results"]:
             self.assertTrue(all(key in tv for key in required_keys))
 
-    def test_games(self):
+    @patch("app.providers.igdb.get_access_token", return_value="mock-token")
+    @patch("app.providers.igdb.services.api_request")
+    def test_games(self, mock_api_request, _mock_access_token):
         """Test the search method for games.
 
         Assert that all required keys are present in each entry.
         """
+        cache.delete("search_igdb_game_Persona 5_1")
+        mock_api_request.return_value = [
+            {"name": "SearchResults", "result": [{"id": 6498, "name": "Persona 5"}]},
+            {"name": "TotalCount", "count": 1},
+        ]
         response = igdb.search("Persona 5", 1)
         required_keys = {"media_id", "media_type", "title", "image"}
 
+        self.assertEqual(len(response["results"]), 1)
         for game in response["results"]:
             self.assertTrue(all(key in game for key in required_keys))
 
@@ -88,16 +96,24 @@ class Search(TestCase):
         for book in response["results"]:
             self.assertTrue(all(key in book for key in required_keys))
 
-    def test_comics(self):
-        """Test the search method for comics.
-
-        Assert that all required keys are present in each entry.
-        """
+    @patch("app.providers.igdb.get_access_token", return_value="mock-token")
+    @patch("app.providers.igdb.services.api_request")
+    def test_comics(self, mock_api_request, _mock_access_token):
+        """Test game search with a title also used by comics."""
+        cache.delete("search_igdb_game_Batman_1")
+        mock_api_request.return_value = [
+            {
+                "name": "SearchResults",
+                "result": [{"id": 42, "name": "Batman: Arkham City"}],
+            },
+            {"name": "TotalCount", "count": 1},
+        ]
         response = igdb.search("Batman", 1)
-        required_keys = {"media_id", "media_type", "title", "image"}
 
-        for comic in response["results"]:
-            self.assertTrue(all(key in comic for key in required_keys))
+        self.assertEqual(len(response["results"]), 1)
+        game = response["results"][0]
+        self.assertEqual(game["media_type"], MediaTypes.GAME.value)
+        self.assertEqual(game["source"], Sources.IGDB.value)
 
     def test_hardcover(self):
         """Test the search method for books from Hardcover.

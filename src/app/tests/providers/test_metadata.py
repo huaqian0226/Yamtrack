@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.test import TestCase
 
 from app.models import Episode, Item, MediaTypes, Sources
@@ -425,8 +426,14 @@ class Metadata(TestCase):
         self.assertEqual(response["details"]["country"], None)
         self.assertEqual(response["details"]["languages"], None)
 
-    def test_games(self):
+    @patch("app.providers.igdb.get_access_token", return_value="mock-token")
+    @patch("app.providers.igdb.services.api_request")
+    def test_games(self, mock_api_request, _mock_access_token):
         """Test the metadata method for games."""
+        cache.delete("igdb_game_1942")
+        with (mock_path / "metadata_game_igdb.json").open() as file:
+            mock_api_request.return_value = json.load(file)
+
         response = igdb.game("1942")
         self.assertEqual(response["title"], "The Witcher 3: Wild Hunt")
         self.assertEqual(response["details"]["format"], "Main game")
@@ -441,18 +448,93 @@ class Metadata(TestCase):
             list(response["time_to_beat"].keys()),
             ["hastily", "normally", "completely"],
         )
+        self.assertEqual(
+            response["source_url"],
+            "https://www.igdb.com/games/the-witcher-3-wild-hunt",
+        )
+        self.assertEqual(
+            response["external_links"],
+            {
+                "Steam": "https://store.steampowered.com/app/292030/The_Witcher_3_Wild_Hunt/",
+                "Nintendo eShop": "https://www.nintendo.com/us/store/products/the-witcher-3-wild-hunt-complete-edition-switch/",
+                "Epic Games Store": "https://store.epicgames.com/en-US/p/the-witcher-3-wild-hunt",
+                "GOG": "https://www.gog.com/en/game/the_witcher_3_wild_hunt",
+            },
+        )
+        query = mock_api_request.call_args.kwargs["data"]
+        self.assertIn("websites.url", query)
+        self.assertIn("external_games.external_game_source", query)
+        self.assertIn("external_games.uid", query)
+        self.assertEqual(
+            igdb.game("1942")["external_links"], response["external_links"]
+        )
+        mock_api_request.assert_called_once()
 
-    def test_external_game_steam(self):
+    def test_igdb_store_links_steam_fallback(self):
+        """Only a Steam entry with a numeric app ID can provide the fallback."""
+        response = {
+            "websites": [
+                {
+                    "url": "https://www.nintendo.com/en-gb/Games/Nintendo-Switch-games/Super-Mario-Bros-Wonder-2404150.html",
+                },
+                {"url": "https://www.epicgames.com/store/en-US/p/example-game"},
+            ],
+            "external_games": [
+                {"external_game_source": 5, "uid": "987654"},
+                {"external_game_source": 1, "uid": "invalid-id"},
+                {"external_game_source": 1},
+                {"external_game_source": 1, "uid": "2320980"},
+            ],
+        }
+        self.assertEqual(
+            igdb.get_external_links(response),
+            {
+                "Nintendo eShop": response["websites"][0]["url"],
+                "Epic Games Store": response["websites"][1]["url"],
+                "Steam": "https://store.steampowered.com/app/2320980/",
+            },
+        )
+
+    def test_igdb_store_links_without_store_data(self):
+        """A game without usable storefront information has no links."""
+        self.assertEqual(igdb.get_external_links({}), {})
+        self.assertEqual(
+            igdb.get_external_links(
+                {
+                    "websites": [
+                        {"url": "https://www.nintendo.com/"},
+                        {
+                            "url": "https://store.steampowered.com.example.org/app/2320980/",
+                        },
+                    ],
+                    "external_games": [{"external_game_source": 5, "uid": "2320980"}],
+                },
+            ),
+            {},
+        )
+
+    @patch("app.providers.igdb.get_access_token", return_value="mock-token")
+    @patch("app.providers.igdb.services.api_request", return_value=[{"game": 1942}])
+    def test_external_game_steam(self, mock_api_request, _mock_access_token):
         """Test the external_game method for Steam games."""
+        cache.delete("external_game_igdb_1_292030")
         igdb_game_id = igdb.external_game("292030", igdb.ExternalGameSource.STEAM)
 
         self.assertEqual(igdb_game_id, 1942)
+        self.assertIn(
+            'uid = "292030" & external_game_source = 1',
+            mock_api_request.call_args.kwargs["data"],
+        )
 
-    def test_external_game_not_found(self):
+    @patch("app.providers.igdb.get_access_token", return_value="mock-token")
+    @patch("app.providers.igdb.services.api_request", return_value=[])
+    def test_external_game_not_found(self, mock_api_request, _mock_access_token):
         """Test the external_game method with non-existent Steam ID."""
+        cache.delete("external_game_igdb_1_999999999")
         igdb_game_id = igdb.external_game("999999999", igdb.ExternalGameSource.STEAM)
 
         self.assertIsNone(igdb_game_id)
+        mock_api_request.assert_called_once()
 
     def test_book(self):
         """Test the metadata method for books."""
