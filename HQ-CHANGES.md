@@ -2,7 +2,9 @@
 
 ## v0.26.3-hq.1 · 2026-11-19
 
-基线为上游 `v0.26.3` 加 `my-feature` 的既有定制（`76a4e99f`）。分支为 `hq/feature-store-links`。这是源码定制版本，生产部署待执行，目标镜像仍为锁定的上游 `v0.26.3`。
+基线为上游 `v0.26.3` 加 `my-feature` 的既有定制（`76a4e99f`）。分支为 `hq/feature-store-links`。这是源码定制版本，运行镜像仍为锁定的上游 `v0.26.3`。
+
+**部署状态：** 2026-11-19 已上线。生产以只读覆盖 `overrides/igdb.py` 挂载本版本的 `src/app/providers/igdb.py`（sha256 `85abef9d…`），重建应用容器并清除 `igdb_game_*` 缓存后验证通过。
 
 游戏详情页的 `Links` 区块展示 IGDB 提供的 Steam、Nintendo eShop、Epic Games Store 和 GOG 商品链接。每个商店优先使用 IGDB `websites` 中首个可识别的地址。没有 Steam 商店地址时，用 `external_games` 中 Steam 来源的数字 `uid` 生成 Steam 商品地址。只有 `Item` 的待买、待问条目也可显示这些链接。现有 `Provider` 区块仍显示 IGDB 链接，电影和剧集沿用原有 TMDB 链接。
 
