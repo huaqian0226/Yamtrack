@@ -10,6 +10,20 @@
 
 {% block content %}
   <div x-data="{ tab: 'overview' }">
+    {% if media.media_type == MediaTypes.GAME.value and media.external_links %}
+      <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-4">{{ media.title }}</h1>
+        <div id="game-store-links" class="flex flex-wrap gap-2">
+          {% for name, url in media.external_links.items %}
+            <a href="{{ url }}"
+               class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 font-medium text-white transition-colors duration-200 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-400"
+               target="_blank"
+               rel="noopener noreferrer">{{ name }} <span aria-hidden="true">↗</span></a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
     {# Top section #}
     <div class="flex flex-col md:flex-row gap-8 md:gap-10 mb-12 md:mb-8">
       {# Poster #}
@@ -135,7 +149,7 @@
               </div>
             </div>
           </div>
-        {% else %}
+        {% elif media.media_type != MediaTypes.GAME.value or not media.external_links %}
           <h1 class="text-3xl font-bold mb-4 text-center md:text-start">{{ media.title }}</h1>
         {% endif %}
 

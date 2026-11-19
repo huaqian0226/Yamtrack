@@ -40,55 +40,79 @@ class MediaDetailsViewTests(TestCase):
         )
 
     @patch("app.providers.services.get_media_metadata")
-    def test_media_details_view(self, mock_get_metadata):
-        """Test the media details view."""
-        mock_get_metadata.return_value = {
-            "media_id": "238",
-            "title": "Test Movie",
-            "media_type": MediaTypes.MOVIE.value,
-            "source": Sources.TMDB.value,
-            "image": "http://example.com/image.jpg",
-            "overview": "Test overview",
-            "release_date": "2023-01-01",
-            "details": {"runtime": 175},
-            "external_links": {"IMDb": "https://www.imdb.com/title/tt0068646/"},
-        }
-
-        response = self.client.get(
-            reverse(
-                "media_details",
-                kwargs={
-                    "source": Sources.TMDB.value,
-                    "media_type": MediaTypes.MOVIE.value,
-                    "media_id": "238",
-                    "title": "test-movie",
-                },
+    def test_tmdb_media_details_view(self, mock_get_metadata):
+        """Keep TMDB movie and TV links in Details only."""
+        for media_type, media_id, title, imdb_url in (
+            (
+                MediaTypes.MOVIE.value,
+                "238",
+                "Test Movie",
+                "https://www.imdb.com/title/tt0068646/",
             ),
-        )
+            (
+                MediaTypes.TV.value,
+                "1668",
+                "Test TV Show",
+                "https://www.imdb.com/title/tt0106179/",
+            ),
+        ):
+            with self.subTest(media_type=media_type):
+                mock_get_metadata.reset_mock()
+                mock_get_metadata.return_value = {
+                    "media_id": media_id,
+                    "title": title,
+                    "media_type": media_type,
+                    "source": Sources.TMDB.value,
+                    "image": "http://example.com/image.jpg",
+                    "details": {"runtime": 30},
+                    "external_links": {"IMDb": imdb_url},
+                }
 
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "app/media_details.html")
+                response = self.client.get(
+                    reverse(
+                        "media_details",
+                        kwargs={
+                            "source": Sources.TMDB.value,
+                            "media_type": media_type,
+                            "media_id": media_id,
+                            "title": "test-title",
+                        },
+                    ),
+                )
 
-        self.assertIn("media", response.context)
-        self.assertEqual(response.context["media"]["title"], "Test Movie")
-        self.assert_detail_link(
-            response, "IMDb", "https://www.imdb.com/title/tt0068646/"
-        )
+                self.assertEqual(response.status_code, 200)
+                self.assertTemplateUsed(response, "app/media_details.html")
+                self.assertEqual(response.context["media"]["title"], title)
+                self.assertNotContains(response, 'id="game-store-links"')
+                self.assert_detail_link(response, "IMDb", imdb_url)
+                mock_get_metadata.assert_called_once_with(
+                    media_type, media_id, Sources.TMDB.value
+                )
 
-        mock_get_metadata.assert_called_once_with(
-            MediaTypes.MOVIE.value,
-            "238",
-            Sources.TMDB.value,
+    def assert_game_store_buttons(self, response, title, links):
+        """Check that the game title is followed by the storefront anchors."""
+        document = BeautifulSoup(response.content, "html.parser")
+        heading = document.select_one("main h1")
+        self.assertEqual(heading.get_text(strip=True), title)
+        store_group = heading.find_next_sibling()
+        self.assertEqual(store_group.get("id"), "game-store-links")
+        buttons = store_group.find_all("a")
+        self.assertEqual(
+            [(button.get_text(" ", strip=True), button["href"]) for button in buttons],
+            [(f"{label} ↗", url) for label, url in links.items()],
         )
+        for button in buttons:
+            self.assertEqual(button["target"], "_blank")
+            self.assertCountEqual(button["rel"], ["noopener", "noreferrer"])
 
     @patch("app.providers.igdb.get_access_token", return_value="mock-token")
     @patch("app.providers.igdb.services.api_request")
-    def test_game_store_links_without_tracking_record(
+    def test_game_store_links_with_and_without_tracking_record(
         self,
         mock_api_request,
         _mock_access_token,
     ):
-        """Render IGDB and storefront links for a game that only has an Item."""
+        """Render storefront buttons for both an Item-only and a tracked game."""
         cache.delete("igdb_game_1942")
         mock_path = Path(__file__).resolve().parent.parent / "mock_data"
         with (mock_path / "metadata_game_igdb.json").open() as file:
@@ -103,17 +127,16 @@ class MediaDetailsViewTests(TestCase):
         )
         self.assertFalse(Game.objects.filter(item=item).exists())
 
-        response = self.client.get(
-            reverse(
-                "media_details",
-                kwargs={
-                    "source": item.source,
-                    "media_type": item.media_type,
-                    "media_id": item.media_id,
-                    "title": "the-witcher-3-wild-hunt",
-                },
-            ),
+        details_url = reverse(
+            "media_details",
+            kwargs={
+                "source": item.source,
+                "media_type": item.media_type,
+                "media_id": item.media_id,
+                "title": "the-witcher-3-wild-hunt",
+            },
         )
+        response = self.client.get(details_url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "app/media_details.html")
@@ -127,9 +150,39 @@ class MediaDetailsViewTests(TestCase):
         self.assertEqual(
             set(links), {"Steam", "Nintendo eShop", "Epic Games Store", "GOG"}
         )
+        self.assert_game_store_buttons(response, item.title, links)
         for label, url in links.items():
             self.assert_detail_link(response, label, url)
         self.assertFalse(Game.objects.filter(item=item).exists())
+
+        game = Game.objects.create(
+            item=item,
+            user=self.user,
+            status=Status.IN_PROGRESS.value,
+        )
+        tracked_response = self.client.get(details_url)
+        self.assertEqual(tracked_response.status_code, 200)
+        self.assertEqual(tracked_response.context["current_instance"], game)
+        self.assert_game_store_buttons(tracked_response, item.title, links)
+
+    @patch("app.providers.services.get_media_metadata")
+    def test_game_without_store_links(self, mock_get_metadata):
+        """Keep the normal game heading when there are no storefronts."""
+        mock_get_metadata.return_value = {
+            "media_id": "1942",
+            "title": "Test Game",
+            "media_type": MediaTypes.GAME.value,
+            "source": Sources.IGDB.value,
+            "image": settings.IMG_NONE,
+            "external_links": {},
+        }
+
+        response = self.client.get("/details/igdb/game/1942/test-game")
+
+        self.assertNotContains(response, 'id="game-store-links"')
+        document = BeautifulSoup(response.content, "html.parser")
+        heading = document.select_one("main h1")
+        self.assertEqual(heading.get_text(strip=True), "Test Game")
 
     @patch("app.providers.services.get_media_metadata")
     @patch("app.providers.tmdb.process_episodes")

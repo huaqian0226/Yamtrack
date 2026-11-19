@@ -1,8 +1,32 @@
 # hq 定制变更
 
+## 工作约定
+
+hq 于 2026-11-19 确定，简单功能直接在 `my-feature` 开发。只有多个功能并行开发时才拆分功能分支，分别测试通过后合入 `my-feature`。`hq/feature-store-links` 已快进合入 `my-feature`（`1f310216`）。
+
+## v0.26.3-hq.2 · 2026-11-19
+
+游戏详情页将商店按钮放在页面顶部的游戏标题正下方、海报上方。Steam、Nintendo eShop、Epic Games Store 和 GOG 按钮按已有链接显示，在新标签页打开。仅有 `Item` 的条目也适用，原有 `Details → Links` 保留。
+
+| 变更文件 | 用途 |
+|---|---|
+| `src/templates/app/media_details.html` | 游戏标题下方新增可换行的商店按钮，沿用已编译的样式。 |
+| `src/app/tests/views/test_media_details.py` | 验证已有追踪记录和仅有 `Item` 的游戏，以及 TMDB 电影和剧集的链接渲染。 |
+| `HQ-CHANGES.md`、`workbench/README.md` | 记录版本、部署方式和分支工作约定。 |
+
+### 部署到锁定镜像
+
+在 `v0.26.3-hq.1` 已部署的基础上，将此版本的 `src/templates/app/media_details.html` 复制到生产 Compose 目录下的 `overrides/media_details.html`，在 `services.yamtrack.volumes` 中追加只读挂载。
+
+```yaml
+- ./overrides/media_details.html:/yamtrack/templates/app/media_details.html:ro
+```
+
+重建 Yamtrack 应用容器使挂载生效。复用 `v0.26.3-hq.1` 的商店链接数据和镜像内已编译的 CSS。
+
 ## v0.26.3-hq.1 · 2026-11-19
 
-基线为上游 `v0.26.3` 加 `my-feature` 的既有定制（`76a4e99f`）。分支为 `hq/feature-store-links`。这是源码定制版本，运行镜像仍为锁定的上游 `v0.26.3`。
+基线为上游 `v0.26.3` 加 `my-feature` 的既有定制（`76a4e99f`）。开发分支为 `hq/feature-store-links`。这是源码定制版本，运行镜像仍为锁定的上游 `v0.26.3`。
 
 **部署状态：** 2026-11-19 已上线。生产以只读覆盖 `overrides/igdb.py` 挂载本版本的 `src/app/providers/igdb.py`（sha256 `85abef9d…`），重建应用容器并清除 `igdb_game_*` 缓存后验证通过。
 

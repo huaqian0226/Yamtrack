@@ -2,11 +2,15 @@
 
 ## Branch ownership
 
-`main` 对应上游稳定分支 **release**，初始版本为 `v0.26.3`（`76856f9e053e7f59469d1eac0238727263e2adfd`）。上游默认分支为 **dev**。**my-feature** 保存去除个人配置后的界面和同步定制，**hq/feature-store-links** 以它为基线。生产仍使用锁定的官方镜像及本地覆盖文件，源码发布与生产部署分别执行。
+`main` 对应上游稳定分支 **release**，初始版本为 `v0.26.3`（`76856f9e053e7f59469d1eac0238727263e2adfd`）。上游默认分支为 **dev**。**my-feature** 保存去除个人配置后的界面和同步定制。生产仍使用锁定的官方镜像及本地覆盖文件，源码发布与生产部署分别执行。
+
+### 工作约定
+
+hq 于 2026-11-19 确定，简单功能直接在 `my-feature` 开发。只有多个功能并行开发时才拆分功能分支，分别测试通过后合入 `my-feature`。`hq/feature-store-links` 已快进合入 `my-feature`（`1f310216`）。
 
 ## What is included
 
-- `hq/feature-store-links` 增加游戏详情页商店链接。版本、文件清单和部署步骤见 [hq 定制变更](../HQ-CHANGES.md)。
+- 游戏详情页在标题下方显示商店按钮。版本、文件清单和部署步骤见 [hq 定制变更](../HQ-CHANGES.md)。
 - Workbench navigation and named external tabs; local COOP adjustment.
 - Games title-row combined Steam/Nintendo sync button and separate result panel.
 - Authenticated, CSRF-protected queue endpoints; Steam uses the native import task.
