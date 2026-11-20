@@ -216,6 +216,15 @@ class SteamImporter:
             ].get(media_id)
 
             if existing_game and self.mode == "overwrite":
+                if existing_game.history.filter(
+                    history_change_reason__startswith="Nintendo",
+                ).exists():
+                    self.warnings.append(
+                        f"{name} ({appid}): 已有 Nintendo 同步记录，"  # noqa: RUF001
+                        "Steam 时长未写入；"  # noqa: RUF001
+                        "请把 Switch 记录改为独立 manual 条目后重试",
+                    )
+                    return
                 self._queue_existing_game_update(
                     existing_game,
                     playtime_forever,

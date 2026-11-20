@@ -10,6 +10,14 @@ def main():
     ap.add_argument('--dry-run',action='store_true')
     ap.add_argument('--from-export',type=Path,help='Use an existing JSON instead of fetching fresh data')
     args=ap.parse_args()
+    approved = json.loads((ROOT / 'approved-games.json').read_text())
+    mapping = {}
+    for entry in approved['games']:
+        item_source = entry.get('source', 'manual')
+        if item_source not in ('manual', 'igdb'):
+            raise ValueError(f"{entry['title']}（{entry['key']}）：source 只允许 manual 或 igdb。")
+        mapping[entry['key']] = entry
+
     PRIVATE.mkdir(mode=0o700,exist_ok=True)
     with (PRIVATE/'sync.lock').open('a') as lock:
         os.chmod(lock.name,0o600)
@@ -24,8 +32,6 @@ def main():
             if len(new)!=1:raise RuntimeError('Expected one fresh export; refusing stale data')
             source=new.pop()
         doc=json.loads(source.read_text())
-        approved=json.loads((ROOT/'approved-games.json').read_text())
-        mapping={x['key']:x for x in approved['games']}
         titles=[];unknown=[];seen=set()
         for x in doc['history']['playHistories']:
             key=(x.get('platform') or x.get('deviceType'))+':'+x['titleId']
@@ -34,7 +40,15 @@ def main():
             if key not in mapping:unknown.append({'key':key,'title':x['titleName']});continue
             minutes=x['totalPlayedMinutes']
             if type(minutes) is not int or minutes<0:raise ValueError('Invalid playtime')
-            titles.append({'key':key,'media_id':mapping[key]['media_id'],'title':x['titleName'],'minutes':minutes,'image':x['imageUrl']})
+            entry = mapping[key]
+            titles.append({
+                'key': key,
+                'source': entry.get('source', 'manual'),
+                'media_id': entry['media_id'],
+                'title': x['titleName'],
+                'minutes': minutes,
+                'image': x['imageUrl'],
+            })
         if not titles:raise ValueError('No approved games in export')
         backup=None
         if not args.dry_run:
@@ -46,8 +60,14 @@ def main():
         code=(ROOT/'yamtrack_import.py').read_text()
         result=subprocess.run([DOCKER,'exec','-i','yamtrack','python','manage.py','shell','-c',code],input=json.dumps(payload),text=True,capture_output=True,timeout=90)
         if result.returncode:
-            # Input contains no credentials, but do not emit arbitrary Django logs.
-            raise RuntimeError('Yamtrack transaction failed; changes rolled back. Backup: '+str(backup))
+            # Relay only the importer's operator-facing errors, never arbitrary Django logs.
+            error = next(
+                (line.split('=', 1)[1] for line in result.stdout.splitlines()
+                 if line.startswith('SYNC_ERROR=')),
+                None,
+            )
+            message = json.loads(error) if error else 'Yamtrack transaction failed; changes rolled back.'
+            raise RuntimeError(f'{message} Backup: {backup}')
         line=next((s for s in result.stdout.splitlines() if s.startswith('SYNC_RESULT=')),None)
         if line is None:raise RuntimeError('Missing verification result; inspect live state before retrying')
         report=json.loads(line.split('=',1)[1]);report.update({'source':source.name,'backup':str(backup) if backup else None,'completed_at':datetime.datetime.now(datetime.timezone.utc).isoformat()})

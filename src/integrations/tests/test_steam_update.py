@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from simple_history.utils import update_change_reason
 
 from app.models import Game, Item, MediaTypes, Sources, Status
 from integrations.imports import steam
@@ -155,6 +156,60 @@ class ImportSteamUpdate(TestCase):
         self.assertEqual(imported_counts, {})
         self.assertEqual(game.progress, 0)
         self.assertEqual(game.status, Status.PLANNING.value)
+
+    def test_overwrite_skips_nintendo_game_and_updates_other_games(
+        self,
+        mock_get_metadata,
+        mock_external_game,
+        mock_api_request,
+    ):
+        """Protect Nintendo playtime when the latest history entry has no reason."""
+        self._setup_mocks(mock_get_metadata, mock_external_game, mock_api_request)
+        switch_game = self._create_game(progress=45)
+        update_change_reason(switch_game, "Nintendo playtime sync")
+        switch_game.notes = "Keep this note"
+        switch_game.save(update_fields=["notes"])
+        self.assertIsNone(switch_game.history.first().history_change_reason)
+
+        other_item = Item.objects.create(
+            media_id="2",
+            source=Sources.IGDB,
+            media_type=MediaTypes.GAME,
+            title="Dota 2",
+            image="https://example.com/dota2.jpg",
+        )
+        other_game = Game.objects.create(
+            item=other_item, user=self.user, status=Status.PLANNING,
+        )
+        mock_external_game.side_effect = [1, 2]
+        mock_api_request.return_value["response"]["games"].append(
+            {
+                "appid": 570,
+                "name": "Dota 2",
+                "playtime_forever": 75,
+                "playtime_2weeks": 15,
+            },
+        )
+
+        counts, warnings = steam.importer("76561198000000000", self.user, "overwrite")
+
+        switch_game.refresh_from_db()
+        other_game.refresh_from_db()
+        self.assertEqual(counts, {MediaTypes.GAME.value: 1})
+        self.assertEqual(
+            warnings,
+            "Counter-Strike 2 (730): 已有 Nintendo 同步记录，"  # noqa: RUF001
+            "Steam 时长未写入；"  # noqa: RUF001
+            "请把 Switch 记录改为独立 manual 条目后重试",
+        )
+        self.assertEqual(
+            (switch_game.progress, switch_game.status), (45, Status.PLANNING),
+        )
+        self.assertEqual(switch_game.notes, "Keep this note")
+        self.assertEqual(switch_game.history.count(), 2)
+        self.assertEqual(
+            (other_game.progress, other_game.status), (75, Status.IN_PROGRESS),
+        )
 
     def test_new_games_join_owned_list_without_duplicates(
         self, mock_get_metadata, mock_external_game, mock_api_request,

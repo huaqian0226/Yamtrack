@@ -15,7 +15,7 @@ hq 于 2026-11-19 确定，简单功能直接在 `my-feature` 开发。只有多
 - Games title-row combined Steam/Nintendo sync button and separate result panel.
 - Authenticated, CSRF-protected queue endpoints; Steam uses the native import task.
 - Steam imports add successfully matched, tracked games to the owner’s `已有游戏` list, including unchanged games on retries. Other lists, notes and scores are preserved; no membership is removed. This applies to scheduled and manual imports.
-- Nintendo Go v0.1.1 export/auth helper; transactional minute-only import with stable platform/title mapping; daily London 08:00 catch-up runner and tests.
+- Nintendo Go v0.1.1 导出与授权工具、伦敦时间每日 08:00 补跑和测试。批准映射可选 `source`（默认 `manual`，也支持 `igdb`），同步以事务更新时长。Steam 和 Switch 同时持有的游戏使用独立的 Switch `manual` 条目，两端同步均保护既有记录。
 - Private online backups and a Steam-key input helper.
 
 Set WORKBENCH_USER and STEAM_USER_ID in the private environment. Set optional navigation URLs. No account IDs, API keys, tokens, cookies, owned-game mappings, databases, knowledge-base content or actual machine paths are committed. Copy approved-games.example.json to approved-games.json and explicitly approve titles before importing. Preserve an existing custom ID when adopting an already tracked game.

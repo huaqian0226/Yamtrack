@@ -4,6 +4,33 @@
 
 hq 于 2026-11-19 确定，简单功能直接在 `my-feature` 开发。只有多个功能并行开发时才拆分功能分支，分别测试通过后合入 `my-feature`。`hq/feature-store-links` 已快进合入 `my-feature`（`1f310216`）。
 
+## v0.26.3-hq.3 · 2026-11-20
+
+hq 于 2026-11-20 要求为 Switch 游戏补充 IGDB 资料。Nintendo 同步按 `source`、`media_type` 和 `media_id` 匹配条目，省略 `source` 时沿用 `manual`。新建 IGDB 条目优先使用 IGDB 标题和封面，查询失败时使用 Nintendo 导出资料。现有 Switch 条目由操作员原地迁移至 IGDB，保留 `Item.id` 和关联的 `Game` 行，并更新批准映射。双平台持有同一游戏时，Switch 记录保留为独立的 `manual` 条目。
+
+Nintendo 同步遇到已有非 Nintendo 管理记录的 IGDB 条目时会回滚整批，并在命令行指出冲突游戏。Steam 覆盖同步识别到 Nintendo 同步历史时会跳过该游戏的时长和状态更新，显示警告并继续处理其他游戏。
+
+**部署状态：** 待上线。现有条目的数据迁移和生产部署由操作员执行。
+
+| 变更文件 | 用途 |
+|---|---|
+| `workbench/nintendo-export/sync-yamtrack.py`、`workbench/nintendo-export/yamtrack_import.py` | 传递并验证批准映射的来源，支持 IGDB 资料及跨平台冲突保护。 |
+| `src/integrations/imports/steam.py` | 覆盖同步时保护 Nintendo 管理的记录，提示将 Switch 记录保留为独立条目。 |
+| `src/integrations/tests/imports/test_nintendo.py`、`src/integrations/tests/test_steam_update.py` | 用模拟数据验收两种来源、事务回滚、预览及 Steam 覆盖保护。 |
+| `HQ-CHANGES.md`、`workbench/README.md`、`workbench/nintendo-export/approved-games.example.json` | 记录版本、部署步骤和可选的 `source` 字段。 |
+
+### 部署到锁定镜像
+
+1. 将 `workbench/nintendo-export/yamtrack_import.py` 和 `workbench/nintendo-export/sync-yamtrack.py` 复制到 `<PROJECT>/工作台/nintendo-export/`。
+2. 将 `src/integrations/imports/steam.py` 复制到 `<PROJECT>/工作台/yamtrack/overrides/steam.py`，复用现有只读挂载。
+3. 在 `<PROJECT>/工作台/yamtrack/` 重建 Yamtrack 应用容器。
+
+   ```sh
+   docker compose up -d --no-deps --force-recreate yamtrack
+   ```
+
+4. 操作员将可迁移的 Switch 条目原地改为 `source=igdb` 和对应的 IGDB `media_id`，并同步更新 `approved-games.json`；双平台重叠的 Switch 条目保留独立的 `manual` 映射。运行 Nintendo 预览核对映射和冲突提示后，再执行正式同步。
+
 ## v0.26.3-hq.2 · 2026-11-19
 
 游戏详情页将商店按钮放在页面顶部的游戏标题正下方、海报上方。Steam、Nintendo eShop、Epic Games Store 和 GOG 按钮按已有链接显示，在新标签页打开。仅有 `Item` 的条目也适用，原有 `Details → Links` 保留。

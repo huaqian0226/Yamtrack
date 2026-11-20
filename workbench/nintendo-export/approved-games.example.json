@@ -1,1 +1,17 @@
-{"confirmed_on": "YYYY-MM-DD", "username": "your-yamtrack-user", "games": []}
+{
+  "confirmed_on": "YYYY-MM-DD",
+  "username": "your-yamtrack-user",
+  "games": [
+    {
+      "key": "Switch:示例手动条目ID",
+      "title": "手动映射示例",
+      "media_id": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "key": "Switch:示例IGDB条目ID",
+      "title": "IGDB 映射示例",
+      "source": "igdb",
+      "media_id": "123456"
+    }
+  ]
+}
