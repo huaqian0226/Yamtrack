@@ -10,7 +10,7 @@ hq 于 2026-11-20 要求为 Switch 游戏补充 IGDB 资料。Nintendo 同步按
 
 Nintendo 同步遇到已有非 Nintendo 管理记录的 IGDB 条目时会回滚整批，并在命令行指出冲突游戏。Steam 覆盖同步识别到 Nintendo 同步历史时会跳过该游戏的时长和状态更新，显示警告并继续处理其他游戏。
 
-**部署状态：** 待上线。现有条目的数据迁移和生产部署由操作员执行。
+**部署状态：** 2026-11-20 已上线。迁移前做 SQLite 在线备份并核对；14 个 Nintendo Item 在一个事务里原地改为 IGDB 来源（item.id 不变，Game 与列表关系逐字段核对一致），删除一个无关联的空 manual 条目。生产更新已挂载的 `overrides/steam.py`（sha256 `81996087…`）和宿主 `nintendo-export/` 两个脚本，compose 未改；重建应用容器、清 `igdb_game_*` 缓存。之后 Nintendo 同步 dry-run 和正式运行都是 0 新增、14 款无变化。旧 `/details/manual/game/...` 网址不做跳转（hq 确认不需要）。
 
 | 变更文件 | 用途 |
 |---|---|
